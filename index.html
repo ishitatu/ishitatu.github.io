@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Al-assisted  Move Analysis Tool（オフライン改良版 v15）</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#ffffff; --muted:#546e7a; --text:#263238; --brand:#1565c0;
+    --border:#e0e6eb; --shadow:0 6px 24px rgba(0,0,0,.08);
+    --warn:#ef6c00; --ok:#2e7d32; --danger:#c62828;
+    --chip:#f5f7fa; --chip-border:#e9eef3; --table-stripe:#fafcff;
+    --gutter:#cfd8dc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",sans-serif;scroll-behavior:smooth;}
+  a{color:var(--brand);text-decoration:none}
+  .container{max-width:1200px;margin:0 auto;padding:24px 20px}
+  .topbar{position:sticky;top:0;z-index:1000;background:#ffffffd6;backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;color:#0d47a1}
+  .nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .nav a{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:#f7faff;box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 2px 6px rgba(13,71,161,.06);transition:transform .06s,border-color .2s,background .2s;font-size:14px;color:#0d47a1}
+  .nav a:hover{transform:translateY(-1px);border-color:#bbdefb;background:#eef5ff}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin:18px 0}
+  section h2{margin:0 0 12px;font-size:20px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#f5f8ff;color:#0d47a1;cursor:pointer;font-weight:600}
+  .btn:hover{border-color:#bbdefb;background:#eef5ff}
+  .btn-ok{background:#e8f5e9;border-color:#c8e6c9;color:#1b5e20}
+  .btn-danger{background:#ffebee;border-color:#ffcdd2;color:#b71c1c}
+  input,select,textarea{width:100%;background:#fff;border:1px solid var(--border);border-radius:10px;color:#263238;padding:10px;font-size:14px}
+  textarea{min-height:120px;line-height:1.6}
+  .pill{padding:4px 8px;border-radius:999px;border:1px solid var(--border);background:#f5f8ff;color:#0d47a1;font-size:12px}
+  .hr{height:1px;background:linear-gradient(90deg,transparent,#e6eef6,transparent);margin:12px 0}
+  .table{width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden}
+  .table th,.table td{border-bottom:1px solid var(--border);padding:10px 12px;text-align:left;font-size:13px;vertical-align:top}
+  .table thead th{background:#f5f8ff;color:#0d47a1;position:sticky;top:0}
+  .table tbody tr:nth-child(odd){background:#fafcff}
+  .resizable{overflow:auto;resize:vertical;min-height:120px;border:1px solid var(--border);border-radius:10px;padding:8px}
+  .resizable-both{overflow:auto;resize:both;min-height:160px;min-width:200px;max-width:100%;border:1px dashed var(--border);border-radius:10px;padding:8px}
+  .moves-table-wrap{overflow:auto;resize:vertical;border:1px solid var(--border);border-radius:12px;max-height:420px}
+  .swatch{width:18px;height:18px;border-radius:4px;border:1px solid #0002;display:inline-block;vertical-align:middle;cursor:pointer}
+  .analysis-box{min-height:300px;border:1px dashed var(--border);padding:12px;border-radius:12px;background:#fff;overflow:auto;resize:vertical}
+  .seg-line{display:block;border-radius:8px;padding:8px 10px;margin:6px 0;border:1px solid #dfe6ee;background:#fff;cursor:pointer}
+  .seg-line.is-selected{outline:2px solid #90caf9}
+  .seg-line.is-editing{outline:2px dashed #90caf9; cursor:text}
+  .popover{position:absolute;z-index:2000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);padding:10px;display:none;resize:both;overflow:auto;min-width:200px;min-height:80px;max-width:90vw;max-height:70vh}
+  .row-inline{display:flex;gap:8px;align-items:center}
+  .row-block{display:flex;flex-direction:column;gap:8px}
+  .note{font-size:12px;color:#607d8b}
+  .sidebar{position:relative}
+  .sidebar .card{position:sticky; top:84px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:#f7faff;cursor:pointer;margin:4px 4px 0 0;white-space:nowrap}
+  .radio-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .radio-row label{display:inline-flex;align-items:center;gap:6px}
+  .radio-row input{margin:0}
+
+  /* Export buttons: unify shape & start position */
+  .export-card .row-inline{justify-content:flex-start}
+  .export-actions .btn{min-width:180px;}
+
+  /* Split (2-pane) */
+  .split{display:grid;grid-template-columns: var(--left, 1fr) 6px var(--right, 1fr);align-items:stretch}
+  .split .pane{min-width:100px}
+  .split .gutter{width:6px;cursor:col-resize;background:linear-gradient(90deg, transparent, var(--gutter), transparent)}
+  .split .gutter:after{content:'';display:block;width:2px;margin:0 auto;height:100%;background:#b0bec5;border-radius:1px;opacity:.6}
+  @media(max-width:900px){
+    .split{grid-template-columns: 1fr}
+    .split .gutter{display:none}
+  }
+
+  /* Split-3 (3 columns with 2 gutters) */
+  .split-3{display:grid;grid-template-columns: var(--c1, 1fr) 6px var(--c2, 1fr) 6px var(--c3, 1fr);align-items:start}
+  .split-3 .pane{min-width:160px}
+  .split-3 .gutter{width:6px;cursor:col-resize;background:linear-gradient(90deg, transparent, var(--gutter), transparent)}
+  .split-3 .gutter:after{content:'';display:block;width:2px;margin:0 auto;height:100%;background:#b0bec5;border-radius:1px;opacity:.6}
+  @media(max-width:900px){
+    .split-3{grid-template-columns:1fr}
+    .split-3 .gutter{display:none}
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <div class="brand">📚 Al-assisted  Move Analysis Tool</div>
+      <nav class="nav" aria-label="主要ナビ">
+        <a href="#file-upload">1 分析対象ファイルアップロード</a>
+        <a href="#verify">2 文の確認・修正</a>
+        <a href="#move-def">3 MOVE定義</a>
+        <a href="#training-data">4 教師データの管理</a>
+        <a href="#ml-status">5 機械学習モデルの実行</a>
+        <a href="#ai-analyze">6 AI提案・MOVE分析</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 1. 分析対象ファイルアップロード -->
+    <section id="file-upload">
+      <div class="section-title">
+        <h2>1 分析対象ファイルアップロード</h2>
+        <span class="pill">フォルダ一括／単体追加／手動作成</span>
+      </div>
+      <div class="hr"></div>
+      <div class="split" data-split-id="file1" style="--left: 1fr; --right: 1fr;">
+        <div class="pane">
+          <div class="card resizable">
+            <h3>① フォルダをまとめて読み込む</h3>
+            <div class="row-inline">
+              <input id="folder-input" type="file" webkitdirectory multiple />
+            </div>
+            <div class="hr"></div>
+            <h3>② 単体ファイル（.txt）を追加</h3>
+            <div class="row-inline">
+              <input id="single-input" type="file" accept=".txt" />
+            </div>
+            <div class="hr"></div>
+            <h3>読み込み済みファイル</h3>
+            <div class="resizable" style="max-height:260px">
+              <table class="table">
+                <thead><tr><th>#</th><th>ファイル</th><th>パス</th><th>手動</th></tr></thead>
+                <tbody id="files-tbody"></tbody>
+              </table>
+            </div>
+            <div class="hr"></div>
+            <div class="row-inline" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+              <button class="btn" onclick="resetSection('file-upload')">このセクションを初期化</button>
+              <button class="btn btn-danger" onclick="resetAllSections()">全てのセクションを初期化</button>
+            </div>
+          </div>
+        </div>
+        <div class="gutter" role="separator" aria-label="左右の幅調整バー"></div>
+        <div class="pane sidebar">
+          <div class="card">
+            <h3>③ 手動で作成（貼り付け）</h3>
+            <div class="row-inline" style="flex-wrap:wrap">
+              <input id="manual-file-name" placeholder="ファイル名（例：intro01.txt）" />
+              <button id="btn-manual-create" class="btn">この内容でファイルを追加</button>
+            </div>
+            <textarea id="manual-file-text" placeholder="ここに本文を貼り付けます。"></textarea>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 文の確認・修正 -->
+    <section id="verify">
+      <div class="section-title">
+        <h2>2 文の確認・修正</h2>
+        <span class="pill">自動スラッシュ導入・結合/分割・Undo/Redo・前へ/次へ</span>
+      </div>
+      <div class="hr"></div>
+      <div class="split" data-split-id="verify1" style="--left: 1fr; --right: 1fr;">
+        <div class="pane">
+          <div class="card resizable">
+            <div id="verify-toolbar" class="row-inline" style="flex-wrap:wrap"></div>
+            <div class="row-inline" style="flex-wrap:wrap;margin-top:6px">
+              <button id="btn-prev-file" class="btn">前へ</button>
+              <button id="btn-next-file" class="btn">次へ</button>
+              <span class="note" id="file-pos"></span>
+              <button id="btn-auto-slash-cur" class="btn">自動スラッシュ導入（このテキスト）</button>
+              <button id="btn-auto-slash-all" class="btn">自動スラッシュ導入（全てのテキスト）</button>
+            </div>
+            <textarea id="slash-text" style="min-height:220px"></textarea>
+            <div class="row-inline" style="flex-wrap:wrap;margin-top:8px">
+              <button id="btn-to-analysis" class="btn btn-ok">分析へ進む</button>
+              <button id="btn-dl-single" class="btn">このファイル（修正済）をDL</button>
+              <button id="btn-dl-all-mod" class="btn">全ファイル（フォルダー構造/修正済）ZIP</button>
+            </div>
+            <div class="hr"></div>
+            <div class="row-inline" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+              <button class="btn" onclick="resetSection('verify')">このセクションを初期化</button>
+              <button class="btn btn-danger" onclick="resetAllSections()">全てのセクションを初期化</button>
+            </div>
+          </div>
+        </div>
+        <div class="gutter" role="separator" aria-label="左右の幅調整バー"></div>
+        <div class="pane sidebar">
+          <div class="card resizable">
+            <div class="row-inline" style="justify-content:space-between;align-items:center">
+              <h3 style="margin-top:0">セグメント表示</h3>
+              <button id="btn-seg-edit" class="btn" aria-pressed="false" title="セグメントを直接編集">編集</button>
+            </div>
+            <div id="segments-under-text" class="resizable" style="min-height:300px;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. MOVE定義 -->
+    <section id="move-def">
+      <div class="section-title">
+        <h2>3 MOVE定義</h2>
+        <span class="pill">色・名称・ラベルを直接編集</span>
+      </div>
+      <div class="hr"></div>
+      <div class="card">
+        <div class="row-inline" style="gap:12px;flex-wrap:wrap">
+          <input id="new-move-name" style="max-width:240px" placeholder="新しいMOVE名" />
+          <button id="btn-add-move" class="btn">Move追加</button>
+        </div>
+        <div class="hr"></div>
+        <div class="moves-table-wrap">
+          <table class="table" id="moves-table">
+            <thead>
+              <tr>
+                <th style="width:90px">色</th>
+                <th style="min-width:160px">MOVE名</th>
+                <th style="min-width:160px">ラベル</th>
+                <th style="width:80px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="moves-tbody"></tbody>
+          </table>
+        </div>
+        <div class="hr"></div>
+        <div class="row-inline" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="resetSection('move-def')">このセクションを初期化</button>
+          <button class="btn btn-danger" onclick="resetAllSections()">全てのセクションを初期化</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 教師データの管理 -->
+    <section id="training-data">
+      <div class="section-title">
+        <h2>4 教師データの管理</h2>
+        <span class="pill">MOVE別フォルダ取込／手動追加／一覧（幅・高さを自由に）</span>
+      </div>
+      <div class="hr"></div>
+      <div class="split-3" data-split3-id="train3" style="--c1:1fr; --c2:1fr; --c3:1fr;">
+        <div class="pane">
+          <div class="card">
+            <h3>フォルダから追加（MOVE別）</h3>
+            <div class="resizable-both" title="右下の角をドラッグして縦横にリサイズできます">
+              <div id="training-folder-upload"></div>
+              <div class="hr"></div>
+              <div id="move-upload-stats" class="row-block"></div>
+            </div>
+          </div>
+        </div>
+        <div class="gutter" data-gutter="g1" role="separator" aria-label="幅調整1"></div>
+        <div class="pane">
+          <div class="card">
+            <h3>手動追加</h3>
+            <div class="resizable-both" title="右下の角をドラッグして縦横にリサイズできます">
+              <div class="row-inline" style="flex-wrap:wrap">
+                <select id="manual-move"></select>
+                <button id="btn-add-training" class="btn">教師データを追加</button>
+              </div>
+              <textarea id="manual-text" placeholder="例文を入力（複数行可）"></textarea>
+              <div class="note" id="training-count">0 件</div>
+            </div>
+          </div>
+        </div>
+        <div class="gutter" data-gutter="g2" role="separator" aria-label="幅調整2"></div>
+        <div class="pane">
+          <div class="card">
+            <h3>登録済み一覧</h3>
+            <div class="resizable-both" style="max-height:480px" title="右下の角をドラッグして縦横にリサイズできます">
+              <table class="table">
+                <thead><tr><th>#</th><th>MOVE</th><th>出所</th><th>ファイル</th><th>プレビュー</th><th></th></tr></thead>
+                <tbody id="training-tbody"></tbody>
+              </table>
+              <div id="training-empty" class="note" style="display:none;padding:8px">（0 件）ここに教師データが表示されます。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="row-inline" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="resetSection('training-data')">このセクションを初期化</button>
+        <button class="btn btn-danger" onclick="resetAllSections()">全てのセクションを初期化</button>
+      </div>
+    </section>
+
+    <!-- 5. 機械学習モデルの実行 -->
+    <section id="ml-status">
+      <div class="section-title">
+        <h2>5 機械学習モデルの実行</h2>
+        <span class="pill">設定・訓練・統計（動的な推奨）</span>
+      </div>
+      <div class="hr"></div>
+      <div class="split" data-split-id="ml1" style="--left: 1fr; --right: 1fr;">
+        <div class="pane">
+          <div class="card resizable">
+            <h3>モデルの設定</h3>
+            <div class="row-block">
+              <div>
+                <label>モデル</label>
+                <select id="model-type">
+                  <option value="tfidf">TF-IDF（高速・軽量）</option>
+                  <option value="ngram">N-gram（フレーズ重視）</option>
+                  <option value="ensemble" selected>アンサンブル（汎用性・推奨）</option>
+                  <option value="contextual">文脈考慮（滑らかさ重視）</option>
+                </select>
+              </div>
+              <div>
+                <label>特徴</label>
+                <select id="feature-type">
+                  <option value="unigram">Unigram（単語）</option>
+                  <option value="bigram">Bigram（2-gram）</option>
+                  <option value="trigram">Trigram（3-gram）</option>
+                  <option value="mixed" selected>Mixed（推奨）</option>
+                </select>
+              </div>
+              <div>
+                <label>maxFeatures</label>
+                <input id="max-features" type="number" value="2000" />
+              </div>
+              <div>
+                <label>smoothing</label>
+                <input id="smoothing" type="number" step="0.1" value="1.0" />
+              </div>
+              <div>
+                <label>正規化</label>
+                <select id="normalization">
+                  <option value="l1">L1</option>
+                  <option value="l2" selected>L2（推奨）</option>
+                  <option value="none">なし</option>
+                </select>
+              </div>
+              <div>
+                <label>類似度</label>
+                <select id="similarity">
+                  <option value="cosine" selected>Cosine（推奨）</option>
+                  <option value="euclidean">Euclidean</option>
+                  <option value="manhattan">Manhattan</option>
+                </select>
+              </div>
+            </div>
+            <div class="row-inline" style="margin-top:8px">
+              <button id="btn-train" class="btn btn-ok">🎯 訓練</button>
+              <span class="note" id="train-status">❌ モデル未訓練</span>
+            </div>
+            <div id="model-stats" class="row-inline" style="gap:10px;flex-wrap:wrap;margin-top:8px"></div>
+            <div class="hr"></div>
+            <div id="ml-info" class="row-inline" style="gap:10px;flex-wrap:wrap"></div>
+            <div class="hr"></div>
+            <div class="row-inline" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+              <button class="btn" onclick="resetSection('ml-status')">このセクションを初期化</button>
+              <button class="btn btn-danger" onclick="resetAllSections()">全てのセクションを初期化</button>
+            </div>
+          </div>
+        </div>
+        <div class="gutter" role="separator" aria-label="左右の幅調整バー"></div>
+        <div class="pane sidebar">
+          <div class="card">
+            <h3 style="margin-top:0">推奨・説明（この分析に基づく）</h3>
+            <div id="recommendations" class="row-block"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. AI提案・MOVE分析 -->
+    <section id="ai-analyze">
+      <div class="section-title">
+        <h2>6 AI提案・MOVE分析</h2>
+        <span class="pill">クリック/範囲選択で小ウィンドウからMOVE選択・操作履歴（Undo/Redo/全てやり直す）</span>
+      </div>
+      <div class="hr"></div>
+      <div class="split" data-split-id="ai1" style="--left: 1fr; --right: 360px;">
+        <div class="pane">
+          <div class="card">
+            <div class="row-inline" style="flex-wrap:wrap">
+              <button id="btn-apply-ml-one" class="btn">🤖 AI予想を適用（このテキスト）</button>
+              <button id="btn-apply-ml-all" class="btn">🤖 AI予想を適用（全てのテキスト）</button>
+              <button id="btn-undo-ai" class="btn">Undo</button>
+              <button id="btn-redo-ai" class="btn">Redo</button>
+              <button id="btn-reset-ai" class="btn btn-danger">全てやり直す</button>
+              <span class="note" id="file-pos-ai"></span>
+            </div>
+            <div id="analysis-box" class="analysis-box"></div>
+          </div>
+        </div>
+        <div class="gutter" role="separator" aria-label="左右の幅調整バー"></div>
+        <div class="pane sidebar">
+          <div class="card export-card">
+            <h3 style="margin-top:0"><strong>エクスポート</strong></h3>
+            <div class="row-block">
+              <div>
+                <div class="note" style="margin-bottom:4px">対象</div>
+                <div class="radio-row">
+                  <label><input type="radio" name="export-scope" id="scope-all" checked> 全てのファイル</label>
+                  <label><input type="radio" name="export-scope" id="scope-current"> 分析中のファイル</label>
+                </div>
+              </div>
+              <div>
+                <div class="note" style="margin-bottom:4px">フォルダ構成</div>
+                <div class="radio-row">
+                  <label><input type="radio" name="folder-structure" id="fs-by-move" checked> MOVEごと</label>
+                  <label><input type="radio" name="folder-structure" id="fs-by-file"> 元ファルダー</label>
+                </div>
+              </div>
+              <div class="row-block">
+                <label>ファイル名プリフィクス（任意）</label>
+                <input id="file-prefix" placeholder="例：exp1" />
+              </div>
+              <div class="radio-row">
+                <label><input id="include-empty" type="checkbox" /> 空ファイルも含む</label>
+                <label><input id="include-unassigned" type="checkbox" /> 未分類も含む</label>
+              </div>
+              <div class="row-inline export-actions" style="flex-wrap:wrap">
+                <button id="btn-dl-all-analysis" class="btn">ZIPをダウンロード</button>
+                <button id="btn-export-excel" class="btn">Excelをダウンロード</button>
+                <button id="btn-export-html" class="btn">HTMLをダウンロード</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="row-inline" style="justify-content:flex-end;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="resetSection('ai-analyze')">このセクションを初期化</button>
+        <button class="btn btn-danger" onclick="resetAllSections()">全てのセクションを初期化</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Popovers -->
+  <div id="move-popover" class="popover" role="dialog" aria-label="MOVEの選択"></div>
+  <div id="range-popover" class="popover" role="dialog" aria-label="選択範囲のMOVE選択"></div>
+
+<script>
+// ====== Global State ======
+const state = {
+  moves: [
+    { id:1, name:'Move 1', color:'#ef5350', label:'Move 1 (導入)', description:'研究の背景・目的・問題提起' },
+    { id:2, name:'Move 2', color:'#42a5f5', label:'Move 2 (展開)', description:'先行研究・方法・理論枠組み' },
+    { id:3, name:'Move 3', color:'#66bb6a', label:'Move 3 (結論)', description:'結果・結論・含意' },
+    { id:4, name:'Move 4', color:'#ab47bc', label:'Move 4 (補足)', description:'限界・今後の課題・提案' },
+    { id:5, name:'Move 5', color:'#ffa726', label:'Move 5 (その他)', description:'その他' },
+    { id:0, name:'Unassigned', color:'#b0bec5', label:'未分類', description:'未分類' }
+  ],
+  palette: ['#ef5350','#42a5f5','#66bb6a','#ab47bc','#ffa726','#26c6da','#8d6e63','#7e57c2','#26a69a','#ec407a','#5c6bc0','#26a69a','#ff7043','#29b6f6','#d4e157','#b0bec5','#000000','#ffffff'],
+  training: [],
+  files: [],
+  curIndex: 0,
+  moveUploads: {},
+  ml: { trained:false, model:null, modelType:'ensemble', featureType:'mixed', maxFeatures:2000, smoothing:1.0, normalization:'l2', similarity:'cosine', stats:null },
+  history: [],
+  hIndex: -1,
+  selectedSegs: new Set(),
+  filePrefix: '',
+  includeEmpty:false, includeUnassigned:false,
+  segEditing:false,
+  _silentReset:false,
+};
+
+const DEFAULT_MOVES = JSON.parse(JSON.stringify(state.moves));
+
+// ====== Helpers ======
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+const el = (tag, attrs={}, children=[]) => {
+  const e = document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v])=>{
+    if (k==='class') e.className=v;
+    else if (k==='style') Object.assign(e.style, v);
+    else if (k.startsWith('on') && typeof v==='function') e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  });
+  (Array.isArray(children)?children:[children]).forEach(c=>{
+    if (c==null) return;
+    if (typeof c==='string') e.appendChild(document.createTextNode(c));
+    else e.appendChild(c);
+  });
+  return e;
+};
+function escXml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&apos;'); }
+function dlBlob(name, blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+function deepCopy(x){ return JSON.parse(JSON.stringify(x)); }
+function say(msg){ if(!state._silentReset) alert(msg); }
+
+// ====== Split (2-pane) ======
+function initSplit(section){
+  const gutter = section.querySelector('.gutter');
+  if (!gutter) return;
+  const id = section.getAttribute('data-split-id') || Math.random().toString(36).slice(2);
+  const lsKey = 'split:'+id;
+  try{
+    const saved = localStorage.getItem(lsKey);
+    if (saved){
+      const obj = JSON.parse(saved);
+      section.style.setProperty('--left', obj.left);
+      section.style.setProperty('--right', obj.right);
+    }
+  }catch(e){}
+  let dragging=false, startX=0, startLeft=0, startRight=0, total=0;
+  gutter.addEventListener('mousedown', (ev)=>{
+    const rect = section.getBoundingClientRect();
+    total = rect.width;
+    const leftPx = section.querySelector('.pane').getBoundingClientRect().width;
+    const rightPx = total - leftPx - gutter.getBoundingClientRect().width;
+    startLeft = leftPx;
+    startRight = rightPx;
+    startX = ev.clientX;
+    dragging = true;
+    ev.preventDefault();
+    document.body.style.userSelect='none';
+  });
+  window.addEventListener('mousemove', (ev)=>{
+    if(!dragging) return;
+    const dx = ev.clientX - startX;
+    let newLeft = Math.max(160, startLeft + dx);
+    let newRight = Math.max(240, startRight - dx);
+    const gutterW = gutter.getBoundingClientRect().width;
+    if (newLeft + newRight + gutterW > total){
+      newLeft = total - newRight - gutterW;
+    }
+    section.style.setProperty('--left', newLeft+'px');
+    section.style.setProperty('--right', newRight+'px');
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging=false;
+    document.body.style.userSelect='';
+    try{
+      localStorage.setItem(lsKey, JSON.stringify({left: section.style.getPropertyValue('--left'), right: section.style.getPropertyValue('--right')}));
+    }catch(e){}
+  });
+}
+
+// ====== Split-3 (3 panes) ======
+function initSplit3(section){
+  const gutters = section.querySelectorAll('.gutter');
+  if (gutters.length<2) return;
+  const id = section.getAttribute('data-split3-id') || Math.random().toString(36).slice(2);
+  const lsKey = 'split3:'+id;
+  try{
+    const saved = localStorage.getItem(lsKey);
+    if (saved){
+      const obj = JSON.parse(saved);
+      section.style.setProperty('--c1', obj.c1);
+      section.style.setProperty('--c2', obj.c2);
+      section.style.setProperty('--c3', obj.c3);
+    }
+  }catch(e){}
+  let dragging=null, startX=0, startC1=0, startC2=0, startC3=0;
+  function startDrag(which, ev){
+    const panes = section.querySelectorAll('.pane');
+    const w1 = panes[0].getBoundingClientRect().width;
+    const w2 = panes[1].getBoundingClientRect().width;
+    const w3 = panes[2].getBoundingClientRect().width;
+    startC1 = w1; startC2 = w2; startC3 = w3;
+    startX = ev.clientX;
+    dragging = which;
+    ev.preventDefault();
+    document.body.style.userSelect='none';
+  }
+  function onMove(ev){
+    if(!dragging) return;
+    const dx = ev.clientX - startX;
+    let c1=startC1, c2=startC2, c3=startC3;
+    if (dragging==='g1'){
+      c1 = Math.max(160, startC1 + dx);
+      c2 = Math.max(160, startC2 - dx);
+    } else if (dragging==='g2'){
+      c2 = Math.max(160, startC2 + dx);
+      c3 = Math.max(200, startC3 - dx);
+    }
+    section.style.setProperty('--c1', c1+'px');
+    section.style.setProperty('--c2', c2+'px');
+    section.style.setProperty('--c3', c3+'px');
+  }
+  function endDrag(){ if(!dragging) return; dragging=null; document.body.style.userSelect=''; try{
+      localStorage.setItem(lsKey, JSON.stringify({ c1: section.style.getPropertyValue('--c1'), c2: section.style.getPropertyValue('--c2'), c3: section.style.getPropertyValue('--c3') }));
+    }catch(e){} }
+  gutters[0].addEventListener('mousedown', (ev)=> startDrag('g1', ev));
+  gutters[1].addEventListener('mousedown', (ev)=> startDrag('g2', ev));
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', endDrag);
+}
+
+// ====== Text helpers ======
+function parseSlashSeparatedText(slash){
+  return String(slash).split(' / ').filter(p=>p.trim().length>0).map((t,i)=>({id:i,text:t.trim(),color:'#b0bec5',move:'Unassigned'}));
+}
+function sentencesFromText(text){
+  const arr = parseSlashSeparatedText(text);
+  return arr.length ? arr : [{id:0,text:text,color:'#b0bec5',move:'Unassigned'}];
+}
+function createSlashSeparatedText(sentences){ return sentences.map(s=>s.text).join(' / '); }
+
+function autoSlashString(src){
+  const abbr = ['e.g.','i.e.','mr.','mrs.','ms.','dr.','prof.','vs.','etc.','no.','fig.','eq.','al.','u.s.','u.k.','ph.d.','jan.','feb.','mar.','apr.','jun.','jul.','aug.','sep.','sept.','oct.','nov.','dec.'];
+  let out = '';
+  for (let i=0;i<src.length;i++){
+    const ch = src[i];
+    const prev = src[i-1] || '';
+    const next = src[i+1] || '';
+    const around = src.slice(Math.max(0,i-6), i+1).toLowerCase();
+    out += ch;
+    // Japanese terminators
+    if (/[。！？]/.test(ch)){
+      const after = src.slice(i+1);
+      if (after.trim().length===0) { continue; } // 最後はスラッシュ不要
+      if (!/^\s*\/\s*/.test(after)) out += ' / ';
+      continue;
+    }
+    if (!/[.!?]/.test(ch)) continue;
+    if (ch==='.' && (prev==='.' || next==='.' )) continue;
+    if (/\d/.test(prev) && /\d/.test(next)) continue;
+    if (ch==='.' && abbr.some(a => around.endsWith(a))) continue;
+    const after = src.slice(i+1);
+    if (after.trim().length===0) { continue; } // 最後はスラッシュ不要
+    if (!/^\s*\/\s*/.test(after)) out += ' / ';
+  }
+  out = out.replace(/\s*\/\s*/g,' / ').replace(/\s{2,}/g,' ').trim();
+  out = out.replace(/\s*\/\s*$/,''); // 末尾スラッシュ除去
+  return out;
+}
+
+// ====== ZIP builder ======
+async function createSimpleZip(files){
+  const enc = new TextEncoder();
+  const u16 = n => new Uint8Array([n & 0xFF, (n>>8) & 0xFF]);
+  const u32 = n => new Uint8Array([n & 0xFF, (n>>8)&0xFF, (n>>16)&0xFF, (n>>24)&0xFF]);
+  const chunks=[]; const cd=[]; let offset=0;
+  for(const f of files){
+    const nameBytes = enc.encode(f.name);
+    const data = typeof f.content==='string'? enc.encode(f.content) : new Uint8Array(await f.content.arrayBuffer());
+    const lh = new Uint8Array(30 + nameBytes.length);
+    let p=0;
+    lh.set([0x50,0x4b,0x03,0x04], p); p+=4;
+    lh.set(u16(20), p); p+=2;
+    lh.set(u16(0), p); p+=2;
+    lh.set(u16(0), p); p+=2;
+    lh.set(u16(0), p); p+=2; lh.set(u16(0), p); p+=2;
+    lh.set(u32(0), p); p+=4;
+    lh.set(u32(data.length), p); p+=4;
+    lh.set(u32(data.length), p); p+=4;
+    lh.set(u16(nameBytes.length), p); p+=2;
+    lh.set(u16(0), p); p+=2;
+    lh.set(nameBytes, p);
+    chunks.push(lh, data);
+    const cdrec = new Uint8Array(46 + nameBytes.length);
+    p=0;
+    cdrec.set([0x50,0x4b,0x01,0x02], p); p+=4;
+    cdrec.set(u16(20), p); p+=2;
+    cdrec.set(u16(20), p); p+=2;
+    cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u16(0), p); p+=2; cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u32(0), p); p+=4;
+    cdrec.set(u32(data.length), p); p+=4;
+    cdrec.set(u32(data.length), p); p+=4;
+    cdrec.set(u16(nameBytes.length), p); p+=2;
+    cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u16(0), p); p+=2;
+    cdrec.set(u32(0), p); p+=4;
+    cdrec.set(u32(offset), p); p+=4;
+    cdrec.set(nameBytes, p);
+    cd.push(cdrec);
+    offset += lh.length + data.length;
+  }
+  const cdb = cd.reduce((a,b)=>{const o=new Uint8Array(a.length+b.length);o.set(a);o.set(b,a.length);return o}, new Uint8Array(0));
+  const eocd = new Uint8Array(22);
+  let p=0;
+  eocd.set([0x50,0x4b,0x05,0x06], p); p+=4;
+  eocd.set(u16(0), p); p+=2; eocd.set(u16(0), p); p+=2;
+  eocd.set(u16(cd.length), p); p+=2; eocd.set(u16(cd.length), p); p+=2;
+  eocd.set(u32(cdb.length), p); p+=4;
+  const dataSize = chunks.reduce((s,arr)=>s+arr.length,0);
+  eocd.set(u32(dataSize), p); p+=4;
+  eocd.set(u16(0), p);
+  const blob = new Blob([...chunks, cdb, eocd], {type:'application/zip'});
+  return blob;
+}
+
+// ====== XLSX ======
+async function buildXlsx(sheets){
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  ${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}
+</Types>`;
+  const relsRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+  const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  ${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}
+</Relationships>`;
+  const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    ${sheets.map((s,i)=>`<sheet name="${escXml(s.name).slice(0,31)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}
+  </sheets>
+</workbook>`;
+  function sheetXml(rows){
+    const cells = rows.map((r,ri)=>{
+      const c1 = `<c r="A${ri+1}" t="inlineStr"><is><t>${escXml(r[0])}</t></is></c>`;
+      const c2 = `<c r="B${ri+1}" t="inlineStr"><is><t>${escXml(r[1])}</t></is></c>`;
+      return `<row r="${ri+1}">${c1}${c2}</row>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>${cells}</sheetData>
+</worksheet>`;
+  }
+  const files = [
+    {name:'[Content_Types].xml', content:contentTypes},
+    {name:'_rels/.rels', content:relsRels},
+    {name:'xl/_rels/workbook.xml.rels', content:wbRels},
+    {name:'xl/workbook.xml', content:workbook},
+    ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`, content:sheetXml(s.rows)})),
+  ];
+  return await createSimpleZip(files);
+}
+
+// ====== Renders ======
+function renderMoves(){
+  const tbody = $('#moves-tbody'); tbody.innerHTML='';
+  state.moves.forEach(m=>{
+    const colorInput = el('input',{type:'color', value:m.color, oninput:(e)=> recolorMove(m.id, e.target.value), style:{width:'60px',height:'34px',padding:'0'}});
+    const nameInput = el('input',{value:m.name, oninput:(e)=> renameMove(m.id, e.target.value)});
+    const labelInput = el('input',{value:m.label||'', oninput:(e)=>{ m.label=e.target.value; }});
+    const delBtn = m.id!==0 ? el('button',{'data-action':'del','data-id':String(m.id),class:'btn btn-danger'},'削除') : el('span',{},'');
+    const tr = el('tr',{},[ el('td',{}, colorInput), el('td',{}, nameInput), el('td',{}, labelInput), el('td',{}, delBtn) ]);
+    tbody.appendChild(tr);
+  });
+
+  const cont = $('#training-folder-upload'); if (cont){ cont.innerHTML='';
+    state.moves.filter(x=>x.id!==0).forEach(m=>{
+      const wrap = el('div',{class:'row-inline', style:{margin:'6px 0',gap:'10px',flexWrap:'wrap'}},[
+        el('span',{}, [el('span',{class:'swatch', style:{background:m.color,marginRight:'6px'}},''), m.name]),
+        el('input',{type:'file',webkitdirectory:true,multiple:true,onchange:e=>{ if(e.target.files) handleMoveFolderUpload(e.target.files, m.name); }}),
+        el('button',{class:'btn btn-danger', onclick:()=>clearMoveUploads(m.name)}, 'アップロード削除')
+      ]);
+      cont.appendChild(wrap);
+    });
+  }
+
+  const sel = $('#manual-move'); if (sel){ sel.innerHTML='';
+    state.moves.filter(x=>x.id!==0).forEach(m=> sel.appendChild(el('option',{value:m.name},m.name)) );
+  }
+  renderMoveUploadStats();
+}
+// delegate delete click
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-action="del"]');
+  if (!btn) return;
+  const id = parseInt(btn.getAttribute('data-id'),10);
+  if (Number.isFinite(id)) deleteMove(id);
+});
+function renderMoveUploadStats(){
+  const box = $('#move-upload-stats'); if (!box) return; box.innerHTML='';
+  state.moves.filter(m=>m.id!==0).forEach(m=>{
+    const cnt = state.moveUploads[m.name] || 0;
+    box.appendChild(el('span',{class:'note'}, `${m.name}: ${cnt} 件のtxt`));
+  });
+}
+function renderTraining(){
+  const cnt = $('#training-count'); if (cnt) cnt.textContent = state.training.length + ' 件';
+  const tb = $('#training-tbody'); if (!tb) return; tb.innerHTML='';
+  const empty = $('#training-empty');
+  if (state.training.length===0){
+    if (empty) empty.style.display='block';
+    return;
+  }
+  if (empty) empty.style.display='none';
+  state.training.forEach((t,i)=>{
+    const tr = el('tr',{},[
+      el('td',{}, String(i+1)), el('td',{}, t.move), el('td',{}, t.source), el('td',{}, t.filename||''),
+      el('td',{class:'note'}, (t.text||'').slice(0,60) + ((t.text||'').length>60?'…':'')),
+      el('td',{}, el('button',{class:'btn btn-danger', onclick:()=>{ state.training.splice(i,1); renderTraining(); }}, '削除'))
+    ]);
+    tb.appendChild(tr);
+  });
+}
+function updateFilePositions(){
+  const pos = $('#file-pos'); if (pos) pos.textContent = state.files.length? `（${state.curIndex+1} / ${state.files.length}）` : '';
+  const posAi = $('#file-pos-ai'); if (posAi) posAi.textContent = state.files.length? `（${state.curIndex+1} / ${state.files.length}）` : '';
+}
+function renderFiles(){
+  const tb = $('#files-tbody'); if (!tb) return; tb.innerHTML='';
+  state.files.forEach((f,i)=>{
+    const tr = el('tr',{style:{background: i===state.curIndex? '#eef5ff':''}},
+      [
+        el('td',{}, String(i+1)),
+        el('td',{}, el('a',{href:'#', onclick:(e)=>{e.preventDefault(); state.curIndex=i; renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions(); }}, f.name )),
+        el('td',{class:'note'}, f.path||f.name),
+        el('td',{}, f.isManualInput?'✅':'')
+      ]
+    );
+    tb.appendChild(tr);
+  });
+  updateFilePositions();
+}
+function refreshVerify(){
+  const cur = state.files[state.curIndex];
+  const toolbar = $('#verify-toolbar'); if (toolbar) toolbar.innerHTML='';
+  if (!cur){
+    if(toolbar) toolbar.innerHTML = '<div class="note">「1 分析対象ファイルアップロード」でファイルを追加してください。</div>';
+    const st=$('#slash-text'); if(st) st.value='';
+    const seg=$('#segments-under-text'); if(seg) seg.innerHTML='';
+    updateFilePositions();
+    return;
+  }
+  if (toolbar){
+    const btnManual = el('button',{class:'btn', onclick:()=>{
+      const name=prompt('手動テキスト名','テキスト1')||'テキスト1';
+      const content=prompt('内容（小さめのテキストを推奨）','This is a sample / It has two sentences.')||'';
+      if (content.trim()){ const s=sentencesFromText(content); const rec={name:`${name}.txt`, path:`${name}.txt`, originalText:content, sentences:s, slashSeparatedText:content, analysisText:'', textSegments:[], isManualInput:true}; state.files.push(rec); state.curIndex=state.files.length-1; renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions(); }
+    }}, '手動追加');
+    const btnInitHist = el('button',{class:'btn', onclick:()=>{
+      const c=state.files[state.curIndex]; if(!c) return;
+      const entry = { slash:c.slashSeparatedText, sentences:deepCopy(c.sentences), desc:'初期状態', ts:Date.now() };
+      state.history = state.history.slice(0, state.hIndex+1).concat([entry]).slice(-30);
+      state.hIndex = state.history.length-1;
+    }}, '履歴初期化');
+    const btnUndo = el('button',{class:'btn', onclick:()=>{
+      if (state.hIndex<=0) return; const h=state.history[state.hIndex-1];
+      Object.assign(state.files[state.curIndex], {slashSeparatedText:h.slash, sentences:h.sentences}); state.hIndex--; state.selectedSegs=new Set(); const st=$('#slash-text'); if(st) st.value=h.slash; renderSegmentsUnderText();
+    }}, 'Undo');
+    const btnRedo = el('button',{class:'btn', onclick:()=>{
+      if (state.hIndex>=state.history.length-1) return; const h=state.history[state.hIndex+1];
+      Object.assign(state.files[state.curIndex], {slashSeparatedText:h.slash, sentences:h.sentences}); state.hIndex++; state.selectedSegs=new Set(); const st=$('#slash-text'); if(st) st.value=h.slash; renderSegmentsUnderText();
+    }}, 'Redo');
+    const btnMerge = el('button',{class:'btn', onclick:()=>{
+      const c=state.files[state.curIndex]; if (!c || state.selectedSegs.size<2) { alert('2つ以上選択してください'); return; }
+      const out=[]; let merged=[];
+      c.sentences.forEach(s=>{
+        if (state.selectedSegs.has(s.id)) merged.push(s.text);
+        else { if (merged.length){ out.push({id:0,text:merged.join(' '),color:'#b0bec5',move:'Unassigned'}); merged=[]; } out.push(s); }
+      });
+      if (merged.length) out.push({id:0,text:merged.join(' '),color:'#b0bec5',move:'Unassigned'});
+      const final = out.map((s,i)=>Object.assign({}, s, {id:i}));
+      c.sentences=final; c.slashSeparatedText=createSlashSeparatedText(final); state.selectedSegs=new Set();
+      const st=$('#slash-text'); if(st) st.value=c.slashSeparatedText; renderSegmentsUnderText();
+    }}, '結合');
+    const btnSplit = el('button',{class:'btn', onclick:()=>{
+      const c=state.files[state.curIndex]; if (!c) return;
+      if (state.selectedSegs.size!==1) { alert('分割する文を1つだけ選択してください'); return; }
+      const targetId = Array.from(state.selectedSegs)[0];
+      const target = c.sentences.find(s=>s.id===targetId);
+      if (!target) return;
+      const input = prompt('「 / 」で区切って分割します。', target.text);
+      if (input==null) return;
+      const parts = parseSlashSeparatedText(input);
+      if (parts.length===0){ alert('分割結果が空です'); return; }
+      const out=[];
+      c.sentences.forEach(s=>{
+        if (s.id===targetId) parts.forEach(p=> out.push({id:0,text:p.text,color:'#b0bec5',move:'Unassigned'}));
+        else out.push(s);
+      });
+      const final = out.map((s,i)=>Object.assign({}, s, {id:i}));
+      c.sentences=final; c.slashSeparatedText=createSlashSeparatedText(final); state.selectedSegs=new Set();
+      const st=$('#slash-text'); if(st) st.value=c.slashSeparatedText; renderSegmentsUnderText();
+    }}, '分割');
+    const btnDelete = el('button',{class:'btn btn-danger', onclick:()=>{
+      const c=state.files[state.curIndex]; if (!c || state.selectedSegs.size===0) { alert('削除対象を選択'); return; }
+      if (!confirm(state.selectedSegs.size + '件を削除しますか？')) return;
+      const out=c.sentences.filter(s=>!state.selectedSegs.has(s.id)).map((s,i)=>Object.assign({}, s, {id:i}));
+      c.sentences=out; c.slashSeparatedText=createSlashSeparatedText(out); state.selectedSegs=new Set();
+      const st=$('#slash-text'); if(st) st.value=c.slashSeparatedText; renderSegmentsUnderText();
+    }}, '削除');
+    const btnAll = el('button',{class:'btn', onclick:()=>{ const c=state.files[state.curIndex]; if(!c) return; state.selectedSegs=new Set(c.sentences.map(s=>s.id)); renderSegmentsUnderText(); }}, '全選択');
+    const btnClear = el('button',{class:'btn', onclick:()=>{ state.selectedSegs=new Set(); renderSegmentsUnderText(); }}, '選択解除');
+    toolbar.append(btnManual, btnInitHist, btnUndo, btnRedo, btnMerge, btnSplit, btnDelete, btnAll, btnClear);
+  }
+
+  const c=state.files[state.curIndex];
+  const st=$('#slash-text'); if (st) {
+    st.value = c.slashSeparatedText || '';
+    st.oninput = (e)=>{
+      const val = e.target.value;
+      const cur = state.files[state.curIndex];
+      if (!cur) return;
+      if (Math.abs(val.length - (cur.slashSeparatedText||'').length)>10){
+        const entry = { slash:cur.slashSeparatedText, sentences:deepCopy(cur.sentences), desc:'テキスト編集', ts:Date.now() };
+        state.history = state.history.slice(0, state.hIndex+1).concat([entry]).slice(-30);
+        state.hIndex = state.history.length-1;
+      }
+      cur.slashSeparatedText = val;
+      cur.sentences = parseSlashSeparatedText(val);
+      renderSegmentsUnderText();
+    };
+  }
+  const prev=$('#btn-prev-file'); if(prev) prev.onclick = ()=>{ if (state.curIndex>0){ state.curIndex--; renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions(); } };
+  const next=$('#btn-next-file'); if(next) next.onclick = ()=>{ if (state.curIndex<state.files.length-1){ state.curIndex++; renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions(); } };
+
+  renderSegmentsUnderText();
+}
+
+// 編集トグル
+$('#btn-seg-edit') && ($('#btn-seg-edit').onclick = (e)=>{
+  state.segEditing = !state.segEditing;
+  e.currentTarget.classList.toggle('btn-ok', state.segEditing);
+  e.currentTarget.setAttribute('aria-pressed', state.segEditing ? 'true':'false');
+  renderSegmentsUnderText();
+});
+
+// 自動スラッシュ導入
+$('#btn-auto-slash-cur') && ($('#btn-auto-slash-cur').onclick = ()=>{
+  const ta = $('#slash-text'); if (!ta) return;
+  const src = ta.value || '';
+  const out = autoSlashString(src);
+  ta.value = out;
+  const cur = state.files[state.curIndex]; if (cur){ cur.slashSeparatedText = out; cur.sentences = parseSlashSeparatedText(out); }
+  renderSegmentsUnderText();
+});
+$('#btn-auto-slash-all') && ($('#btn-auto-slash-all').onclick = ()=>{
+  if (!state.files.length){ alert('対象ファイルがありません'); return; }
+  let updated = 0;
+  state.files.forEach((f)=>{
+    const base = f.slashSeparatedText || f.originalText || '';
+    const out = autoSlashString(base);
+    if (out !== base) updated++;
+    f.slashSeparatedText = out;
+    f.sentences = parseSlashSeparatedText(out);
+  });
+  refreshVerify(); renderFiles();
+  alert('自動スラッシュを全ファイルに適用しました（変更 ' + updated + ' 件）。');
+});
+
+// 2: このファイルDL / 全ファイルZIP（フォルダー構造）
+$('#btn-dl-single') && ($('#btn-dl-single').onclick = ()=>{
+  const c=state.files[state.curIndex];
+  if (!c){ alert('ファイルがありません'); return; }
+  const content = c.slashSeparatedText != null ? c.slashSeparatedText : (c.originalText || '');
+  dlBlob(c.name, new Blob([content], {type:'text/plain;charset=utf-8'}));
+});
+$('#btn-dl-all-mod') && ($('#btn-dl-all-mod').onclick = async ()=>{
+  if (!state.files.length){ alert('ファイルがありません'); return; }
+  const payload = state.files.map(f=>{
+    const content = f.slashSeparatedText != null ? f.slashSeparatedText : (f.originalText || '');
+    const name = f.path || f.name;
+    return {name, content};
+  });
+  const zip = await createSimpleZip(payload);
+  dlBlob('all_texts_modified_with_folders.zip', zip);
+  alert('全ファイル（フォルダー構造/修正済）ZIP を作成しました。');
+});
+
+function renderSegmentsUnderText(){
+  const c=state.files[state.curIndex]; const box=$('#segments-under-text'); if(!box) return; box.innerHTML='';
+  if (!c) return;
+  c.sentences.forEach(s=>{
+    const attrs = { class:'seg-line'+(state.selectedSegs.has(s.id)?' is-selected':''), 'data-idx': String(s.id) };
+    if (state.segEditing){
+      attrs.contenteditable = 'true';
+      attrs.class += ' is-editing';
+      attrs.oninput = (ev)=>{
+        const idx = Number(ev.currentTarget.getAttribute('data-idx'));
+        const nv = ev.currentTarget.textContent.replace(/\s+/g,' ').trim();
+        const cur = state.files[state.curIndex]; if (!cur) return;
+        const target = cur.sentences.find(x=>x.id===idx); if (!target) return;
+        target.text = nv;
+        cur.slashSeparatedText = createSlashSeparatedText(cur.sentences);
+        const st=$('#slash-text'); if (st) st.value = cur.slashSeparatedText;
+      };
+      attrs.onkeydown = (ev)=>{
+        if (ev.key==='Enter'){ ev.preventDefault(); ev.currentTarget.blur(); }
+      };
+      attrs.onclick = (ev)=>{ ev.stopPropagation(); };
+    }else{
+      attrs.onclick = ()=>{
+        if (state.selectedSegs.has(s.id)) state.selectedSegs.delete(s.id);
+        else state.selectedSegs.add(s.id);
+        renderSegmentsUnderText();
+      };
+    }
+    const div = el('div', attrs, s.text);
+    box.appendChild(div);
+  });
+}
+
+// ====== Move ops ======
+function renameMove(id, newName){
+  const old = state.moves.find(m=>m.id===id); if(!old) return;
+  state.moves = state.moves.map(m=> m.id===id ? Object.assign({}, m, {name:newName}) : m );
+  state.files = state.files.map(file=> Object.assign({}, file, { textSegments:(file.textSegments||[]).map(s=> s.move===old.name?Object.assign({}, s, {move:newName}):s) }));
+  state.training = state.training.map(t=> t.move===old.name?Object.assign({}, t, {move:newName}):t );
+  renderMoves(); renderTraining();
+}
+function recolorMove(id, color){
+  const target = state.moves.find(m=>m.id===id); if(!target) return;
+  state.moves = state.moves.map(m=> m.id===id ? Object.assign({}, m, {color}) : m );
+  state.files = state.files.map(file=> Object.assign({}, file, { textSegments:(file.textSegments||[]).map(s=> s.move===target.name?Object.assign({}, s, {color}):s) }));
+  renderMoves(); renderAnalysis();
+}
+function deleteMove(id){
+  if (id===0) return;
+  const target = state.moves.find(m=>m.id===id); if(!target) return;
+  // Remove move, demote segments/training of that move to Unassigned
+  state.files = state.files.map(file=> Object.assign({}, file, { textSegments:(file.textSegments||[]).map(s=> s.move===target.name?Object.assign({}, s, {move:'Unassigned',color:'#b0bec5'}):s) }));
+  state.training = state.training.filter(t=> t.move!==target.name);
+  state.moves = state.moves.filter(m=>m.id!==id);
+  renderMoves(); renderTraining(); renderAnalysis();
+}
+function addMove(name){
+  const used = new Set(state.moves.map(m=>m.color));
+  const color = state.palette.find(c=>!used.has(c)) || state.palette[0];
+  const newId = Math.max.apply(null, state.moves.map(m=>m.id))+1;
+  const newMove = { id:newId, name:name.trim(), color, label:name.trim(), description:'新規MOVE' };
+  const ordered = state.moves.slice(0,-1).concat([newMove, state.moves[state.moves.length-1]]);
+  state.moves = ordered; renderMoves();
+}
+
+// ====== Training data ======
+$('#btn-add-training') && ($('#btn-add-training').onclick = ()=>{
+  const text=$('#manual-text').value; const move=$('#manual-move').value;
+  if (!text || !text.trim()) return;
+  state.training.push({text:text.trim(), move, source:'manual', filename:'manual'});
+  $('#manual-text').value=''; renderTraining();
+});
+async function handleMoveFolderUpload(list, moveName){
+  const arr = Array.from(list).filter(f=>f.name.toLowerCase().endsWith('.txt'));
+  if (arr.length===0){ alert('txtファイルが見つかりません'); return; }
+  const items = await Promise.all(arr.map(f=> new Promise(res=>{
+    const r=new FileReader(); r.onload=e=>res({text:String(e.target.result||'').trim(), move:moveName, source:'move_folder', filename:f.name}); r.readAsText(f);
+  })));
+  state.training = state.training.concat(items);
+  state.moveUploads[moveName] = (state.moveUploads[moveName]||0) + items.length;
+  renderTraining(); renderMoveUploadStats();
+  say(moveName + ' に ' + items.length + ' 件を追加しました（合計: ' + state.moveUploads[moveName] +'）');
+}
+function clearMoveUploads(moveName){
+  const before = state.training.length;
+  state.training = state.training.filter(t=> !(t.source==='move_folder' && t.move===moveName));
+  const removed = before - state.training.length;
+  state.moveUploads[moveName] = 0;
+  renderTraining(); renderMoveUploadStats();
+  say(moveName + ' のアップロード分を削除しました（ ' + removed + ' 件）');
+}
+
+// ====== ML ======
+$('#btn-train') && ($('#btn-train').onclick = trainModel);
+function trainModel(){
+  if (state.training.length===0){ alert('教師データがありません'); return; }
+  const modelType = $('#model-type').value;
+  const featureType = $('#feature-type').value;
+  const maxFeatures = parseInt($('#max-features').value||'0');
+  const smoothing = parseFloat($('#smoothing').value||'1');
+  const normalization = $('#normalization').value;
+  const similarity = $('#similarity').value;
+
+  const vocab = new Set();
+  const moveFeat = {};
+  const movesInData = new Set();
+  let totalLen=0;
+  state.training.forEach(ex=>{
+    movesInData.add(ex.move);
+    totalLen += ex.text.length;
+    let words=[];
+    const tokens = ex.text.toLowerCase().replace(/[.,!?;:\(\)\[\]\"']/g,'').split(/\s+/).filter(w=>w.length>1);
+    if (['unigram','mixed'].includes(featureType)) words=words.concat(tokens);
+    if (['bigram','mixed'].includes(featureType)) for(let i=0;i<tokens.length-1;i++) words.push(tokens[i]+'_'+tokens[i+1]);
+    if (['trigram','mixed'].includes(featureType)) for(let i=0;i<tokens.length-2;i++) words.push(tokens[i]+'_'+tokens[i+1]+'_'+tokens[i+2]);
+    if (maxFeatures>0) words = words.slice(0,maxFeatures);
+    words.forEach(w=>vocab.add(w));
+    if (!moveFeat[ex.move]) moveFeat[ex.move] = {};
+    words.forEach(w=> moveFeat[ex.move][w]=(moveFeat[ex.move][w]||0)+1 );
+  });
+  const moveScores={};
+  Object.keys(moveFeat).forEach(mv=>{
+    moveScores[mv]={};
+    const total = Object.values(moveFeat[mv]).reduce((a,b)=>a+b,0);
+    Object.keys(moveFeat[mv]).forEach(w=>{
+      const tf = moveFeat[mv][w]/Math.max(total,1);
+      const df = Object.keys(moveFeat).filter(m=> moveFeat[m][w]).length;
+      const idf = Math.log((Object.keys(moveFeat).length)/(df||1));
+      let score = 0;
+      if (modelType==='tfidf') score = tf * (1+idf);
+      else if (modelType==='ngram') score = tf * (w.includes('_')?1.5:1.0);
+      else if (modelType==='ensemble') score = (tf*(1+idf) + tf*(w.includes('_')?1.2:1.0))/2;
+      else if (modelType==='contextual'){ const s=smoothing; score=((tf+s)*(1+idf)*(w.includes('_')?1.3:1.0))/(1+s); }
+      if (normalization==='l1') score = Math.abs(score);
+      if (normalization==='l2') score = Math.sqrt(score*score);
+      moveScores[mv][w]=score;
+    });
+  });
+  const model = { modelType, featureType,
+    hyper:{maxFeatures, smoothing, normalization, similarity},
+    vocab:Array.from(vocab), moveScores, moves:Array.from(movesInData),
+    stats:{ totalExamples:state.training.length, vocabularySize:vocab.size, avgTextLength:Math.round(totalLen/Math.max(state.training.length,1)) }
+  };
+  state.ml = {trained:true, model, modelType, featureType, maxFeatures, smoothing, normalization, similarity, stats:model.stats};
+  $('#train-status').textContent='✅ 訓練済み';
+  renderModelStats(); renderMLInfo(); renderRecommendations();
+  say('モデルを訓練しました。');
+}
+function renderModelStats(){
+  const box = $('#model-stats'); if (!box) return; box.innerHTML='';
+  const s = state.ml.stats; if (!s) return;
+  box.appendChild(el('span',{class:'note'}, '教師データ: '+s.totalExamples));
+  box.appendChild(el('span',{class:'note'}, '語彙: '+s.vocabularySize));
+  box.appendChild(el('span',{class:'note'}, '平均長: '+s.avgTextLength));
+}
+function renderMLInfo(){
+  const info = $('#ml-info'); if (!info) return; info.innerHTML='';
+  if (!state.ml.trained){ info.appendChild(el('span',{class:'note'},'❌ 未訓練')); return; }
+  const m = state.ml.model;
+  info.appendChild(el('span',{class:'note'},'✅ 訓練済み'));
+  info.appendChild(el('span',{class:'note'},'モデル: '+m.modelType));
+  info.appendChild(el('span',{class:'note'},'特徴: '+m.featureType));
+  info.appendChild(el('span',{class:'note'},'対応MOVE: '+m.moves.join(', ')));
+}
+
+// 推奨・説明（動的）
+function renderRecommendations(){
+  const box = $('#recommendations'); if (!box) return; box.innerHTML='';
+  const stats = state.ml.stats;
+  const hyper = state.ml.model ? state.ml.model.hyper : {
+    maxFeatures: parseInt($('#max-features').value||'2000'),
+    smoothing: parseFloat($('#smoothing').value||'1.0'),
+    normalization: $('#normalization').value,
+    similarity: $('#similarity').value
+  };
+  const modelType = $('#model-type').value;
+  const feat = $('#feature-type').value;
+
+  const examples = stats? stats.totalExamples : state.training.length;
+  const vocab = stats? stats.vocabularySize : 0;
+  const avgLen = stats? stats.avgTextLength : 0;
+  const moveCount = (state.ml.model && state.ml.model.moves)? state.ml.model.moves.length : new Set(state.training.map(t=>t.move)).size;
+
+  function add(msg){ box.appendChild(el('div',{class:'note'}, '• ' + msg)); }
+
+  if (!stats){
+    add('まだ訓練していません。推奨値は概ね：モデル=アンサンブル、特徴=Mixed、maxFeatures=2000、smoothing=1.0、正規化=L2、類似度=Cosine。');
+  }else{
+    add(`教師データ ${examples} 件・語彙 ${vocab} ・平均長 ${avgLen} ・MOVE数 ${moveCount}`);
+  }
+
+  if (examples < 30){ add('データが少ないため「TF-IDF」か「N-gram」を検討（過学習を避ける）。'); }
+  else if (examples >= 30 && moveCount >= 3){ add('十分なデータ量：アンサンブルで安定しやすい。'); }
+  if (feat==='mixed'){ add('特徴=Mixed：単語+連語で再現率を確保。'); }
+  else if (feat==='trigram'){ add('特徴=Trigram：フレーズ依存が強く、データ量を要します。'); }
+
+  if (vocab){
+    const target = Math.min(5000, Math.max(1000, Math.round(vocab*0.4)));
+    add(`maxFeaturesは ${target} 前後が目安（現在: ${hyper.maxFeatures}）。`);
+  }else{
+    add(`maxFeaturesは 1000〜3000 が目安（現在: ${hyper.maxFeatures}）。`);
+  }
+
+  if (modelType==='contextual'){
+    if (hyper.smoothing < 0.5) add('smoothingが小さすぎます。0.5〜1.5を推奨（現在: '+hyper.smoothing+'）。');
+    else if (hyper.smoothing > 1.5) add('smoothingが大きすぎます。0.5〜1.5の範囲で調整（現在: '+hyper.smoothing+'）。');
+    else add('smoothing=1.0付近は安定（現在: '+hyper.smoothing+'）。');
+  }else{
+    add('smoothingは文脈モデル時のみ効きます（現在モデル: '+modelType+'）。');
+  }
+
+  if (hyper.normalization!=='l2') add('正規化はL2推奨（長短文のバランス）。現在: '+hyper.normalization.toUpperCase());
+  else add('正規化=L2 は妥当です。');
+  if (hyper.similarity!=='cosine') add('類似度はCosine推奨（角度で比較）。現在: '+hyper.similarity);
+  else add('類似度=Cosine は妥当です。');
+}
+
+// ====== AI Apply/Predict & Analysis ======
+function ensureAnalysisHistory(file){
+  if (!file) return;
+  file.aHist = file.aHist || [];
+  if (typeof file.aIndex !== 'number') file.aIndex = -1;
+  if (file.aHist.length===0){
+    const snap = deepCopy(file.textSegments || []);
+    file.aHist.push(snap);
+    file.aIndex = 0;
+  }
+}
+function pushAnalysisHistory(file, desc){
+  ensureAnalysisHistory(file);
+  file.aHist = file.aHist.slice(0, file.aIndex+1);
+  const snap = deepCopy(file.textSegments || []);
+  file.aHist.push(snap);
+  if (file.aHist.length > 50) file.aHist.shift();
+  file.aIndex = file.aHist.length - 1;
+}
+function undoAnalysis(){
+  const f = state.files[state.curIndex]; if (!f || !f.aHist || f.aIndex<=0) return;
+  f.aIndex -= 1;
+  f.textSegments = deepCopy(f.aHist[f.aIndex] || []);
+  renderAnalysis();
+}
+function redoAnalysis(){
+  const f = state.files[state.curIndex]; if (!f || !f.aHist || f.aIndex >= f.aHist.length-1) return;
+  f.aIndex += 1;
+  f.textSegments = deepCopy(f.aHist[f.aIndex] || []);
+  renderAnalysis();
+}
+function resetAnalysisAll(){
+  const f = state.files[state.curIndex]; if (!f) return;
+  f.textSegments = parseSlashSeparatedText(f.slashSeparatedText).map(s=>({id:s.id,text:s.text,color:'#b0bec5',move:'Unassigned'}));
+  f.aHist = []; f.aIndex = -1;
+  ensureAnalysisHistory(f);
+  renderAnalysis();
+}
+
+$('#btn-apply-ml-one') && ($('#btn-apply-ml-one').onclick = ()=>{
+  const f=state.files[state.curIndex]; if (!f){ alert('ファイルを追加してください'); return; }
+  applyAIPredictionToFile(f);
+  renderAnalysis();
+});
+$('#btn-apply-ml-all') && ($('#btn-apply-ml-all').onclick = ()=>{
+  if (!state.files.length){ alert('ファイルがありません'); return; }
+  if (!state.ml.trained || !state.ml.model){ alert('モデル未訓練です'); return; }
+  state.files.forEach(f=> applyAIPredictionToFile(f));
+  renderAnalysis();
+  say('全ファイルにAI予測を適用しました。');
+});
+
+$('#btn-undo-ai') && ($('#btn-undo-ai').onclick = undoAnalysis);
+$('#btn-redo-ai') && ($('#btn-redo-ai').onclick = redoAnalysis);
+$('#btn-reset-ai') && ($('#btn-reset-ai').onclick = ()=>{ if(confirm('すべての色分けをリセットしますか？')) resetAnalysisAll(); });
+
+function applyAIPredictionToFile(file){
+  if (!state.ml.trained || !state.ml.model){ alert('モデル未訓練です'); return; }
+  const sentences = parseSlashSeparatedText(file.slashSeparatedText);
+  const segs=[];
+  sentences.forEach((s,i)=>{
+    const pred = predictOne(s.text, state.ml.model);
+    const mv = state.moves.find(m=>m.name===pred.bestMove) || state.moves.find(m=>m.name==='Unassigned');
+    segs.push({ id:i, text:s.text, color:(mv?mv.color:'#b0bec5'), move:pred.bestMove, isMLPrediction:true });
+  });
+  file.analysisText = sentences.map(s=>s.text).join(' ');
+  ensureAnalysisHistory(file);
+  file.textSegments = segs;
+  pushAnalysisHistory(file, 'AI予測');
+}
+function predictOne(text, model){
+  let words=[];
+  const tokens = text.toLowerCase().replace(/[.,!?;:\(\)\[\]\"']/g,'').split(/\s+/).filter(w=>w.length>1);
+  if (['unigram','mixed'].includes(model.featureType)) words=words.concat(tokens);
+  if (['bigram','mixed'].includes(model.featureType)) for(let i=0;i<tokens.length-1;i++) words.push(tokens[i]+'_'+tokens[i+1]);
+  if (['trigram','mixed'].includes(model.featureType)) for(let i=0;i<tokens.length-2;i++) words.push(tokens[i]+'_'+tokens[i+1]+'_'+tokens[i+2]);
+  const scores={};
+  model.moves.forEach(mv=>{
+    let s=0; words.forEach(w=>{ if (model.moveScores[mv] && model.moveScores[mv][w]) s+=model.moveScores[mv][w]; });
+    scores[mv] = s/Math.max(words.length,1);
+  });
+  const arr = Object.entries(scores).map(([move,score])=>({move,score})).sort((a,b)=>b.score - a.score);
+  const best = arr[0] || {move:'Unassigned', score:0};
+  const avg = Object.values(scores).reduce((a,b)=>a+b,0)/Math.max(model.moves.length,1);
+  let th=0.1; if (model.modelType==='ensemble') th=0.05; if (model.modelType==='contextual') th=0.01;
+  const final = best.score>avg*th ? best.move : (arr[0]?arr[0].move:'Unassigned');
+  return { bestMove:final };
+}
+
+function renderAnalysis(){
+  const box = $('#analysis-box');
+  const c=state.files[state.curIndex];
+  if (!box) return;
+  if (!c){ box.innerHTML=''; updateFilePositions(); return; }
+  box.innerHTML='';
+  const segs = (c.textSegments && c.textSegments.length)? c.textSegments : parseSlashSeparatedText(c.slashSeparatedText).map(s=>({id:s.id,text:s.text,color:'#b0bec5',move:'Unassigned'}));
+  ensureAnalysisHistory(c);
+  segs.forEach((seg, idx)=>{
+    const div = el('div',{class:'seg-line', title:seg.move||'Unassigned', style:{
+      background: seg.color, color:'#fff', borderColor: seg.color
+    },
+      onclick:(ev)=> openMovePicker(ev.currentTarget, idx)
+    }, seg.text);
+    box.appendChild(div);
+  });
+  updateFilePositions();
+}
+
+// Move picker popover
+function openMovePicker(targetElem, segIndex){
+  const pop = $('#move-popover'); pop.innerHTML='';
+  const list = el('div',{}, state.moves.map(m=> el('div',{class:'chip', title:m.name,
+    onclick:()=>{ applyMoveToSegment(segIndex, m); hidePopovers(); }}, [el('span',{class:'swatch', style:{background:m.color}},''), (m.label || m.name)] )));
+  pop.appendChild(list);
+  const rect = targetElem.getBoundingClientRect();
+  pop.style.left = (rect.right + window.scrollX + 8) + 'px';
+  pop.style.top = (rect.top + window.scrollY) + 'px';
+  pop.style.display='block';
+}
+function hidePopovers(){ $('#move-popover').style.display='none'; $('#range-popover').style.display='none'; }
+function applyMoveToSegment(segIndex, move){
+  const c=state.files[state.curIndex]; if (!c) return;
+  ensureAnalysisHistory(c);
+  if (!c.textSegments || !c.textSegments.length){
+    c.textSegments = parseSlashSeparatedText(c.slashSeparatedText).map(s=>({id:s.id,text:s.text,color:'#b0bec5',move:'Unassigned'}));
+  }
+  const seg = c.textSegments[segIndex]; if (!seg) return;
+  pushAnalysisHistory(c, '色変更');
+  seg.move = move.name; seg.color = move.color;
+  renderAnalysis();
+}
+
+// Close popovers on outside click / Escape
+document.addEventListener('mousedown', (e)=>{
+  const mp = $('#move-popover'), rp = $('#range-popover');
+  const target = e.target;
+  if (mp.style.display==='block' && !mp.contains(target)) mp.style.display='none';
+  if (rp.style.display==='block' && !rp.contains(target)) rp.style.display='none';
+});
+document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') hidePopovers(); });
+
+// Range selection popover
+document.addEventListener('mouseup', (e)=>{
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { hidePopovers(); return; }
+  const range = sel.getRangeAt(0);
+  const parent = range.commonAncestorContainer;
+  const segDiv = (parent.nodeType===1? parent : parent.parentElement).closest('.seg-line');
+  if (!segDiv) { hidePopovers(); return; }
+  const c=state.files[state.curIndex]; if (!c) return;
+  const segIdx = Array.from($('#analysis-box').children).indexOf(segDiv);
+  if (segIdx<0) { hidePopovers(); return; }
+  const pre = document.createRange(); pre.selectNodeContents(segDiv); pre.setEnd(range.startContainer, range.startOffset);
+  const start = pre.toString().length;
+  const end = start + range.toString().length;
+  if (end<=start) { hidePopovers(); return; }
+
+  const pop = $('#range-popover');
+  pop.innerHTML='';
+  pop.appendChild(el('div',{class:'note', style:{marginBottom:'6px'}},'選択範囲のMOVEを選択'));
+  const list = el('div',{}, state.moves.map(m=> el('div',{class:'chip', title:m.name,
+    onclick:()=>{ applyMoveToRange(segIdx, start, end, m); hidePopovers(); }}, [el('span',{class:'swatch', style:{background:m.color}},''), (m.label || m.name)] )));
+  pop.appendChild(list);
+  pop.style.left = (e.clientX + 8) + 'px';
+  pop.style.top = (e.clientY + 8) + 'px';
+  pop.style.display='block';
+});
+
+function applyMoveToRange(segIdx, start, end, move){
+  const c=state.files[state.curIndex]; if (!c) return;
+  ensureAnalysisHistory(c);
+  if (!c.textSegments || !c.textSegments.length){
+    c.textSegments = parseSlashSeparatedText(c.slashSeparatedText).map(s=>({id:s.id,text:s.text,color:'#b0bec5',move:'Unassigned'}));
+  }
+  const seg = c.textSegments[segIdx]; if (!seg) return;
+  const a = seg.text.slice(0,start);
+  const b = seg.text.slice(start,end);
+  const ctail = seg.text.slice(end);
+  const newSegs = [];
+  if (a) newSegs.push({id:Date.now()+Math.random(), text:a, color:seg.color, move:seg.move});
+  if (b) newSegs.push({id:Date.now()+Math.random(), text:b, color:move.color, move:move.name});
+  if (ctail) newSegs.push({id:Date.now()+Math.random(), text:ctail, color:seg.color, move:seg.move});
+  const arr = state.files[state.curIndex].textSegments.slice();
+  pushAnalysisHistory(c, '部分色変更');
+  arr.splice(segIdx, 1, ...newSegs);
+  state.files[state.curIndex].textSegments = arr;
+  renderAnalysis();
+}
+
+// ====== Exporters (6) ======
+async function buildAllZip(payload, name){ const zip = await createSimpleZip(payload); dlBlob(name, zip); }
+function getExportScope(){ return $('#scope-current') && $('#scope-current').checked ? 'current' : 'all'; }
+function getFolderStructure(){ return $('#fs-by-file') && $('#fs-by-file').checked ? 'by_file' : 'by_move'; }
+
+$('#btn-dl-all-analysis') && ($('#btn-dl-all-analysis').onclick = async ()=>{
+  const scope = getExportScope();
+  const structure = getFolderStructure();
+  const targets = scope==='all' ? state.files : [state.files[state.curIndex]].filter(Boolean);
+  const analyzed = targets.filter(f=> (f.textSegments||[]).some(s=>s.move!=='Unassigned'));
+  if (analyzed.length===0) { alert('分析済みファイルがありません'); return; }
+  const payload = [];
+  if (structure==='by_move') {
+    state.moves.forEach(mv=>{
+      if (mv.name==='Unassigned' && !state.includeUnassigned) return;
+      analyzed.forEach(f=>{
+        const base=f.name.replace(/\.txt$/,'');
+        const segs=(f.textSegments||[]).filter(s=>s.move===mv.name);
+        const content=segs.map(s=>s.text).join('\n');
+        if (content || state.includeEmpty) payload.push({ name: mv.name + '/' + ((state.filePrefix? state.filePrefix + '_' : '') + base) + '.txt', content: content || '' });
+      });
+    });
+  } else {
+    analyzed.forEach(f=>{
+      const base=f.name.replace(/\.txt$/,'');
+      state.moves.forEach(mv=>{
+        if (mv.name==='Unassigned' && !state.includeUnassigned) return;
+        const segs=(f.textSegments||[]).filter(s=>s.move===mv.name);
+        const content=segs.map(s=>s.text).join('\n');
+        if (content || state.includeEmpty) payload.push({ name: base + '/' + ((state.filePrefix? state.filePrefix + '_' : '') + base) + '–' + mv.name + '.txt', content: content || '' });
+      });
+    });
+  }
+  if (payload.length===0) { alert('出力対象がありません'); return; }
+  await buildAllZip(payload, (state.filePrefix? state.filePrefix + '_' : '') + 'MOVE_Analysis.zip');
+});
+
+$('#file-prefix') && ($('#file-prefix').oninput = (e)=> state.filePrefix = e.target.value);
+$('#include-empty') && ($('#include-empty').onchange = (e)=> state.includeEmpty = e.target.checked);
+$('#include-unassigned') && ($('#include-unassigned').onchange = (e)=> state.includeUnassigned = e.target.checked);
+
+$('#btn-export-excel') && ($('#btn-export-excel').onclick = async ()=>{
+  const scope = getExportScope();
+  const targets = scope==='all' ? state.files : [state.files[state.curIndex]].filter(Boolean);
+  if (targets.length===0){ alert('対象がありません'); return; }
+  const sheets = targets.map(f=>{
+    const rows = [['Sentence','MOVE']];
+    const segs = (f.textSegments && f.textSegments.length)? f.textSegments : parseSlashSeparatedText(f.slashSeparatedText).map(s=>({text:s.text, move:'Unassigned'}));
+    segs.forEach(s=> rows.push([s.text, s.move||'Unassigned']));
+    let sheetName = f.name.replace(/\.txt$/,'').slice(0,31).replace(/[\\/*?:\[\]]/g,'_');
+    if (!sheetName) sheetName = 'sheet';
+    return {name:sheetName, rows};
+  });
+  const xlsx = await buildXlsx(sheets);
+  dlBlob('move_analysis.xlsx', xlsx);
+});
+
+$('#btn-export-html') && ($('#btn-export-html').onclick = ()=>{
+  const scope = getExportScope();
+  const targets = scope==='all' ? state.files : [state.files[state.curIndex]].filter(Boolean);
+  if (targets.length===0){ alert('対象がありません'); return; }
+  if (targets.length===1){
+    const c=targets[0];
+    const segs = (c.textSegments && c.textSegments.length)? c.textSegments : parseSlashSeparatedText(c.slashSeparatedText).map(s=>({text:s.text, move:'Unassigned', color:'#b0bec5'}));
+    const styles = `<style>body{font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP','Yu Gothic',sans-serif; background:#fff;color:#222;padding:24px} .seg-line{display:block;border-radius:8px;padding:8px 10px;margin:6px 0;border:1px solid #dfe6ee}</style>`;
+    const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>${escXml(c.name)}</title>${styles}</head><body><h1>${escXml(c.name)}</h1><div>` +
+      segs.map(s=>`<div class="seg-line" data-move="${escXml(s.move||'Unassigned')}" style="background:${escXml(s.color||'#b0bec5')};color:#fff;border-color:${escXml(s.color||'#b0bec5')}">${escXml(s.text)}</div>`).join('') +
+      `</div></body></html>`;
+    dlBlob(c.name.replace(/\.txt$/,'') + '_analysis.html', new Blob([html],{type:'text/html;charset=utf-8'}));
+  } else {
+    (async ()=>{
+      const payload = targets.map(f=>{
+        const segs = (f.textSegments && f.textSegments.length)? f.textSegments : parseSlashSeparatedText(f.slashSeparatedText).map(s=>({text:s.text, move:'Unassigned', color:'#b0bec5'}));
+        const styles = `<style>body{font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans JP','Yu Gothic',sans-serif; background:#fff;color:#222;padding:24px} .seg-line{display:block;border-radius:8px;padding:8px 10px;margin:6px 0;border:1px solid #dfe6ee}</style>`;
+        const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>${escXml(f.name)}</title>${styles}</head><body><h1>${escXml(f.name)}</h1><div>` +
+          segs.map(s=>`<div class="seg-line" data-move="${escXml(s.move||'Unassigned')}" style="background:${escXml(s.color||'#b0bec5')};color:#fff;border-color:${escXml(s.color||'#b0bec5')}">${escXml(s.text)}</div>`).join('') +
+          `</div></body></html>`;
+        return {name: f.name.replace(/\.txt$/,'') + '_analysis.html', content: html};
+      });
+      const zip = await createSimpleZip(payload);
+      dlBlob('move_analysis_html.zip', zip);
+    })();
+  }
+});
+
+// ====== Uploads ======
+$('#folder-input') && ($('#folder-input').onchange = async (e)=>{
+  if (!e.target.files) return;
+  const txts = Array.from(e.target.files).filter(f=>f.name.toLowerCase().endsWith('.txt'));
+  if (txts.length===0) { alert('txtファイルが見つかりません'); return; }
+  const loaded = await Promise.all(txts.map(f=> new Promise(res=>{
+    const r=new FileReader(); r.onload=ev=>{
+      const content=String(ev.target.result||'');
+      const sents=sentencesFromText(content);
+      res({ name:f.name, path:(f.webkitRelativePath||f.name), originalText:content, sentences:sents, slashSeparatedText:content, analysisText:'', textSegments:[] });
+    }; r.readAsText(f);
+  })));
+  state.files = loaded; state.curIndex=0;
+  renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions();
+  alert(loaded.length + ' 個のtxtを読み込みました');
+});
+$('#single-input') && ($('#single-input').onchange = (e)=>{
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{
+    const content=String(ev.target.result||'');
+    const sents = sentencesFromText(content);
+    const rec = { name:f.name, path:f.name, originalText:content, sentences:sents, slashSeparatedText:content, analysisText:'', textSegments:[] };
+    state.files.push(rec); state.curIndex=state.files.length-1;
+    renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions();
+  };
+  r.readAsText(f);
+});
+$('#btn-manual-create') && ($('#btn-manual-create').onclick = ()=>{
+  const nameInput = $('#manual-file-name').value.trim();
+  const name = (nameInput || 'manual') + (/\.txt$/i.test(nameInput)?'':'.txt');
+  const content = $('#manual-file-text').value;
+  if (!content || !content.trim()){ alert('内容を入力してください'); return; }
+  const sents = sentencesFromText(content);
+  const rec = { name, path:name, originalText:content, sentences:sents, slashSeparatedText:content, analysisText:'', textSegments:[], isManualInput:true };
+  state.files.push(rec); state.curIndex=state.files.length-1;
+  renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions();
+  $('#manual-file-text').value='';
+});
+
+// ====== Section Reset ======
+function resetSection(sectionId){
+  switch(sectionId){
+    case 'file-upload': {
+      state.files = []; state.curIndex = 0; state.history=[]; state.hIndex=-1; state.selectedSegs = new Set();
+      renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions();
+      const a=$('#manual-file-name'); if(a) a.value='';
+      const b=$('#manual-file-text'); if(b) b.value='';
+      const c=$('#single-input'); if(c) c.value='';
+      const d=$('#folder-input'); if(d) d.value='';
+      say('「分析対象ファイルアップロード」を初期化しました。');
+      break;
+    }
+    case 'verify': {
+      const c=state.files[state.curIndex];
+      if (c){
+        c.sentences = parseSlashSeparatedText(c.originalText||'');
+        c.slashSeparatedText = c.originalText || '';
+      }
+      state.history=[]; state.hIndex=-1; state.selectedSegs=new Set();
+      state.segEditing=false; const b=$('#btn-seg-edit'); if(b){ b.classList.remove('btn-ok'); b.setAttribute('aria-pressed','false'); }
+      refreshVerify(); updateFilePositions();
+      say('「文の確認・修正」を初期化しました（現在のファイルを原文テキストに戻しました）。');
+      break;
+    }
+    case 'move-def': {
+      state.moves = JSON.parse(JSON.stringify(DEFAULT_MOVES));
+      state.files = state.files.map(file=> Object.assign({}, file, { textSegments:(file.textSegments||[]).map(s=>{
+        const mv = state.moves.find(m=>m.name===s.move);
+        if (!mv) return Object.assign({}, s, {move:'Unassigned', color:'#b0bec5'});
+        return Object.assign({}, s, {color:mv.color});
+      }) }));
+      renderMoves(); renderAnalysis();
+      say('「MOVE定義」を元の設定に戻しました。');
+      break;
+    }
+    case 'training-data': {
+      state.training = []; state.moveUploads = {}; renderTraining(); renderMoveUploadStats();
+      const t=$('#manual-text'); if(t) t.value='';
+      say('「教師データの管理」を初期化しました。');
+      break;
+    }
+    case 'ml-status': {
+      state.ml = { trained:false, model:null, modelType:'ensemble', featureType:'mixed', maxFeatures:2000, smoothing:1.0, normalization:'l2', similarity:'cosine', stats:null };
+      $('#train-status').textContent='❌ モデル未訓練';
+      $('#model-stats').innerHTML='';
+      $('#ml-info').innerHTML='';
+      renderRecommendations();
+      say('「機械学習モデル」を初期化しました。');
+      break;
+    }
+    case 'ai-analyze': {
+      const c=state.files[state.curIndex];
+      if (c){ c.analysisText=''; c.textSegments=[]; c.aHist=[]; c.aIndex=-1; }
+      state.filePrefix='';
+      const fp=$('#file-prefix'); if(fp) fp.value='';
+      const scAll=$('#scope-all'); if(scAll) scAll.checked=true;
+      const scCur=$('#scope-current'); if(scCur) scCur.checked=false;
+      const fsMove=$('#fs-by-move'); if(fsMove) fsMove.checked=true;
+      const fsFile=$('#fs-by-file'); if(fsFile) fsFile.checked=false;
+      state.includeEmpty=false; const ie=$('#include-empty'); if(ie) ie.checked=false;
+      state.includeUnassigned=false; const iu=$('#include-unassigned'); if(iu) iu.checked=false;
+      renderAnalysis(); updateFilePositions();
+      say('「AI提案・MOVE分析」を初期化しました。');
+      break;
+    }
+    default: break;
+  }
+}
+function resetAllSections(){
+  state._silentReset = true;
+  try{
+    resetSection('ai-analyze');
+    resetSection('ml-status');
+    resetSection('training-data');
+    resetSection('move-def');
+    resetSection('verify');
+    resetSection('file-upload');
+  } finally {
+    state._silentReset = false;
+  }
+  alert('全てのセクションを初期化しました。');
+}
+window.resetSection = resetSection;
+window.resetAllSections = resetAllSections;
+
+// ====== Init ======
+function init(){
+  renderMoves(); renderTraining(); renderFiles(); refreshVerify(); renderAnalysis(); updateFilePositions();
+  $$('.split').forEach(initSplit);
+  $$('.split-3').forEach(initSplit3);
+  $('#btn-add-move') && ($('#btn-add-move').onclick = ()=>{ const v=$('#new-move-name').value.trim(); if(!v) return; addMove(v); $('#new-move-name').value=''; });
+  $$('.nav a').forEach(a=>a.addEventListener('click', e=>{ const id=a.getAttribute('href').slice(1); const t=document.getElementById(id); if (t){ t.scrollIntoView({behavior:'smooth',block:'start'}); }}));
+  ['model-type','feature-type','max-features','smoothing','normalization','similarity'].forEach(id=>{
+    const elx = document.getElementById(id);
+    if (elx) elx.addEventListener('input', ()=> renderRecommendations());
+    if (elx) elx.addEventListener('change', ()=> renderRecommendations());
+  });
+  renderRecommendations();
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<!-- __PATCH_v22_RECREATE__ -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+  // init resizable splits
+  try{ document.querySelectorAll('.split').forEach(sec=> { if (typeof initSplit==='function') initSplit(sec); }); }catch(_){}
+
+  // radios -> dropdowns (kept in sync)
+  (function(){
+    var scopeAll = document.getElementById('scope-all');
+    var scopeCur = document.getElementById('scope-current');
+    if (scopeAll && scopeCur){
+      var row = scopeAll.closest('.radio-row');
+      if (row){
+        row.style.display='none';
+        var sel = document.createElement('select'); sel.id='export-scope';
+        sel.innerHTML = '<option value="all" '+(scopeAll.checked?'selected':'')+'>全てのファイル</option>'
+                      + '<option value="current" '+(scopeCur.checked?'selected':'')+'>分析中のファイル</option>';
+        row.parentNode.insertBefore(sel,row);
+        sel.addEventListener('change', function(){
+          if (this.value==='all'){ scopeAll.checked=true; scopeCur.checked=false; }
+          else { scopeAll.checked=false; scopeCur.checked=true; }
+        });
+      }
+    }
+    var byMove = document.getElementById('fs-by-move');
+    var byFile = document.getElementById('fs-by-file');
+    if (byMove && byFile){
+      var row2 = byMove.closest('.radio-row');
+      if (row2){
+        row2.style.display='none';
+        var label = row2.previousElementSibling;
+        if (label && label.classList.contains('note')){ label.textContent = 'フォルダー構成（#名称を変更）'; }
+        var sel2 = document.createElement('select'); sel2.id='export-structure';
+        sel2.innerHTML = '<option value="by-move" '+(byMove.checked?'selected':'')+'>MOVEごと</option>'
+                       + '<option value="by-file" '+(byFile.checked?'selected':'')+'>元ファルダー</option>';
+        row2.parentNode.insertBefore(sel2,row2);
+        sel2.addEventListener('change', function(){
+          if (this.value==='by-move'){ byMove.checked=true; byFile.checked=false; }
+          else { byMove.checked=false; byFile.checked=true; }
+        });
+      }
+    }
+  })();
+
+  // Excel MIME wrap
+  (function(){
+    if (typeof window.buildXlsx === 'function'){
+      var _orig = window.buildXlsx;
+      window.buildXlsx = async function(sheets){
+        var zipBlob = await _orig(sheets);
+        try { return new Blob([zipBlob], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); }
+        catch(_){ return zipBlob; }
+      };
+    }
+  })();
+
+});
+</script>
+
+<!-- __PATCH_v23_SINGLE_FRAME_AND_LABEL__ -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+  (function(){
+    var section = document.getElementById('file-upload');
+    if (!section) return;
+    var split = section.querySelector('.split[data-split-id="file1"]');
+    if (!split) return;
+
+    var leftPane = split.querySelector('.pane');
+    var rightPane = split.querySelector('.pane.sidebar');
+    var gutter   = split.querySelector('.gutter');
+    if (!leftPane) return;
+
+    var leftCard = leftPane.querySelector('.card.resizable');
+    var manualCard = rightPane ? rightPane.querySelector('.card') : null;
+    if (!leftCard || !manualCard) return;
+
+    var headings = leftCard.querySelectorAll('h3');
+    var insertBeforeNode = null;
+    headings.forEach(function(h){
+      if ((h.textContent||'').indexOf('読み込み済みファイル') !== -1){
+        insertBeforeNode = h;
+      }
+    });
+    if (!insertBeforeNode) return;
+
+    var manualWrapper = document.createElement('div');
+    manualWrapper.className = 'manual-merged-block';
+    var h3 = document.createElement('h3'); h3.textContent = '③ 手動で作成（貼り付け）';
+    manualWrapper.appendChild(h3);
+    Array.from(manualCard.childNodes).forEach(function(n){
+      if (n.tagName && n.tagName.toLowerCase()==='h3') return;
+      manualWrapper.appendChild(n);
+    });
+
+    leftCard.insertBefore(manualWrapper, insertBeforeNode);
+    var hr = document.createElement('div'); hr.className = 'hr';
+    leftCard.insertBefore(hr, insertBeforeNode);
+
+    if (manualCard.parentNode) manualCard.parentNode.removeChild(manualCard);
+    if (rightPane) rightPane.style.display = 'none';
+    if (gutter) gutter.style.display = 'none';
+    if (split && split.style) { split.style.setProperty('--left','1fr'); split.style.setProperty('--right','0fr'); }
+  })();
+
+  (function(){
+    var exportCard = document.querySelector('#ai-analyze .export-card');
+    if (!exportCard) return;
+    var notes = exportCard.querySelectorAll('.note');
+    notes.forEach(function(n){
+      var t = (n.textContent||'').trim();
+      if (/フォルダ構成|フォルダー構成|ファルダー構成/.test(t)) {
+        n.textContent = 'ファルダー構成';
+      }
+    });
+  })();
+
+});
+</script>
+
+<!-- __PATCH_v24_FILES_TABLE_DELETE_ONLY__ -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+  // Safe helper
+  function safe(fn){ try { return typeof fn === 'function'; } catch(_){ return false; } }
+
+  // 1) Header: change to 「#｜ファイル｜パス｜削除」 (reuse 4th col)
+  (function(){
+    var tb = document.getElementById('files-tbody');
+    if (!tb) return;
+    var theadTr = tb.closest('table') && tb.closest('table').querySelector('thead tr');
+    if (!theadTr) return;
+    var ths = theadTr.querySelectorAll('th');
+    if (ths.length >= 3){
+      ths[0].textContent = '#';
+      ths[1].textContent = 'ファイル';
+      ths[2].textContent = 'パス';
+      // Use 4th column slot for 削除 (create if missing)
+      if (ths.length >= 4){
+        ths[3].textContent = '削除';
+        // hide any extra columns beyond 4
+        for (var i=4;i<ths.length;i++){ ths[i].style.display='none'; }
+      } else {
+        var thDel = document.createElement('th'); thDel.textContent='削除';
+        theadTr.appendChild(thDel);
+      }
+    }
+  })();
+
+  // 2) Provide global delete by index
+  window.deleteFileAt = function(i){
+    if (!window.state || !Array.isArray(state.files)) return;
+    if (i < 0 || i >= state.files.length) return;
+    state.files.splice(i, 1);
+    if (state.curIndex >= state.files.length) state.curIndex = Math.max(0, state.files.length - 1);
+    if (safe(window.renderFiles)) renderFiles();
+    if (safe(window.refreshVerify)) refreshVerify();
+    if (safe(window.renderAnalysis)) renderAnalysis();
+    if (safe(window.updateFilePositions)) updateFilePositions();
+  };
+
+  // 3) Decorate rows after each render: ensure 4th cell is 「削除」ボタン
+  function decorateRows(){
+    var tb = document.getElementById('files-tbody');
+    if (!tb) return;
+    var rows = tb.querySelectorAll('tr');
+    rows.forEach(function(tr, i){
+      var cells = tr.children;
+      if (cells.length < 3) return;
+      // Ensure exactly 4th cell exists
+      var tdDel;
+      if (cells.length >= 4){
+        tdDel = cells[3];
+      } else {
+        tdDel = document.createElement('td');
+        tr.appendChild(tdDel);
+      }
+      // Build/refresh delete button
+      var btn = tdDel.querySelector('button.btn-delete');
+      if (!btn){
+        btn = document.createElement('button');
+        btn.className = 'btn btn-danger btn-delete';
+        tdDel.innerHTML = '';
+        tdDel.appendChild(btn);
+      }
+      btn.type = 'button';
+      btn.textContent = '削除';
+      btn.setAttribute('data-index', String(i));
+      // Hide any cells beyond index 3 (remove 手動などの余剰列表示)
+      for (var c=4; c<cells.length; c++){ cells[c].style.display='none'; }
+    });
+  }
+
+  // 4) Event delegation (1件ずつ削除)
+  (function(){
+    var tb = document.getElementById('files-tbody');
+    if (!tb) return;
+    if (!tb._wiredDelete){
+      tb.addEventListener('click', function(ev){
+        var btn = ev.target.closest('button.btn-delete');
+        if (!btn) return;
+        ev.preventDefault(); ev.stopPropagation();
+        var idx = parseInt(btn.getAttribute('data-index')||'-1', 10);
+        if (!isNaN(idx)) deleteFileAt(idx);
+      });
+      tb._wiredDelete = true;
+    }
+  })();
+
+  // 5) Hook into renderFiles to decorate after each render (non-invasive)
+  (function(){
+    var _orig = window.renderFiles;
+    window.renderFiles = function(){
+      if (typeof _orig === 'function') _orig();
+      decorateRows();
+    };
+  })();
+
+  // Initial pass for current DOM
+  decorateRows();
+});
+</script>
+
+<!-- __PATCH_v25_DELETE_BUTTON_DIRECT_HANDLER__ -->
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+  function safe(fn){ try { return typeof fn === 'function'; } catch(_){ return false; } }
+
+  // Ensure global delete exists (no change if already defined)
+  if (typeof window.deleteFileAt !== 'function'){
+    window.deleteFileAt = function(i){
+      if (!window.state || !Array.isArray(state.files)) return;
+      if (i < 0 || i >= state.files.length) return;
+      state.files.splice(i, 1);
+      if (state.curIndex >= state.files.length) state.curIndex = Math.max(0, state.files.length - 1);
+      if (safe(window.renderFiles)) renderFiles();
+      if (safe(window.refreshVerify)) refreshVerify();
+      if (safe(window.renderAnalysis)) renderAnalysis();
+      if (safe(window.updateFilePositions)) updateFilePositions();
+    };
+  }
+
+  // Wrap existing decorateRows to add a direct click handler
+  (function(){
+    var tb = document.getElementById('files-tbody');
+    if (!tb) return;
+
+    // Find our decorateRows from v24; if not present, define minimal one
+    var decorate = window.__decorateRows_v25 || function(){
+      var tb = document.getElementById('files-tbody');
+      if (!tb) return;
+      var rows = tb.querySelectorAll('tr');
+      rows.forEach(function(tr, i){
+        var cells = tr.children;
+        if (cells.length < 3) return;
+        var tdDel = (cells.length >= 4) ? cells[3] : (function(){ var td=document.createElement('td'); tr.appendChild(td); return td; })();
+        var btn = tdDel.querySelector('button.btn-delete');
+        if (!btn){
+          btn = document.createElement('button');
+          btn.className = 'btn btn-danger btn-delete';
+          tdDel.innerHTML = '';
+          tdDel.appendChild(btn);
+        }
+        btn.type = 'button';
+        btn.textContent = '削除';
+        btn.setAttribute('data-index', String(i));
+        if (!btn._wiredDirect){
+          btn.addEventListener('click', function(ev){
+            ev.preventDefault(); ev.stopPropagation();
+            var idx = parseInt(btn.getAttribute('data-index')||'-1', 10);
+            if (!isNaN(idx)) window.deleteFileAt(idx);
+          });
+          btn._wiredDirect = true;
+        }
+        // hide extra cells beyond 4
+        for (var c=4; c<cells.length; c++){ cells[c].style.display='none'; }
+      });
+    };
+
+    // Hook into renderFiles to always call decorate after render
+    var _orig = window.renderFiles;
+    window.renderFiles = function(){
+      if (typeof _orig === 'function') _orig();
+      decorate();
+    };
+
+    // Initial call
+    try { window.renderFiles(); } catch(_){ decorate(); }
+
+    // Also observe tbody for dynamic changes
+    try {
+      var obs = new MutationObserver(function(){ decorate(); });
+      obs.observe(tb, { childList:true, subtree:false });
+    } catch(_){}
+  })();
+});
+</script>
+
+<!-- __PATCH_v26_DELETE_FIX_ONLY__ -->
+<script>
+// v26: Fix deleteFileAt to work when 'state' is block-scoped (const state) and not on window.
+document.addEventListener('DOMContentLoaded', function(){
+  function safe(fn){ try { return typeof fn === 'function'; } catch(_){ return false; } }
+  function getAppState(){
+    try { if (typeof state !== 'undefined') return state; } catch(_){}
+    return window.state;
+  }
+  window.deleteFileAt = function(i){
+    var S = getAppState();
+    if (!S || !Array.isArray(S.files)) return;
+    if (i < 0 || i >= S.files.length) return;
+    S.files.splice(i, 1);
+    if (S.curIndex >= S.files.length) S.curIndex = Math.max(0, S.files.length - 1);
+    if (safe(window.renderFiles)) renderFiles();
+    if (safe(window.refreshVerify)) refreshVerify();
+    if (safe(window.renderAnalysis)) renderAnalysis();
+    if (safe(window.updateFilePositions)) updateFilePositions();
+  };
+});
+</script>
+</body>
+</html>
